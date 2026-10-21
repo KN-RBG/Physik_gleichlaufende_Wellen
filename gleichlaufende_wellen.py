@@ -77,9 +77,9 @@ def update_curves():
     max_amp = 2 * AMPLITUDE * abs(np.cos(np.pi * d))
     delta = 360 * d
     info.set_text(
-        rf"$d = {d:.2f}\\,\\lambda$     "
-        rf"$\\Delta\\varphi = {delta:.1f}^\\circ$     "
-        rf"$A_{{\\mathrm{{res}}}} (x\\geq d) = {max_amp:.2f}\\,A$"
+        rf"$d = {d:.2f}\,\lambda$     "
+        rf"$\Delta\varphi = {delta:.1f}^\circ$     "
+        rf"$A_{{\mathrm{{res}}}} (x\geq d) = {max_amp:.2f}\,A$"
     )
     fig.canvas.draw_idle()
 
