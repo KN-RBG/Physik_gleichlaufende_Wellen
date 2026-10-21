@@ -69,10 +69,12 @@ def update_curves():
     total = wave1 + np.where(active2, wave2_full, 0.0)
     line1.set_data(x, wave1)
     line2.set_data(x, wave2)
-    line_sum.set_data(x, total)
+    line_sum.set_data(x, np.where(active2, total, np.nan))
 
     sender2.set_xdata([d, d])
-    source2.set_data([d], [0])
+    source_y = AMPLITUDE * np.sin(-2 * np.pi * FREQUENCY * t)
+    source1.set_data([0], [source_y])
+    source2.set_data([d], [source_y])
 
     max_amp = 2 * AMPLITUDE * abs(np.cos(np.pi * d))
     delta = 360 * d
