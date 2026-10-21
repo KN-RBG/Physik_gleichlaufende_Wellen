@@ -29,10 +29,14 @@ ax.axhline(0, color="black", lw=0.8, alpha=0.5)
 
 line1, = ax.plot([], [], color="#1976d2", lw=1.8, label="Welle 1")
 line2, = ax.plot([], [], color="#e67e22", lw=1.8, label="Welle 2")
-line_sum, = ax.plot([], [], color="#228b54", lw=2.8, label="Ueberlagerung")
+line_sum, = ax.plot([], [], color="#228b54", lw=2.8, label="Gesamtwelle")
+sender1 = ax.axvline(0, color="#1976d2", lw=1.6, ls="--", alpha=0.8)
+sender2 = ax.axvline(0.5, color="#e67e22", lw=1.6, ls="--", alpha=0.8)
+source1, = ax.plot([0], [0], marker="o", ms=9, color="#1976d2", zorder=6)
+source2, = ax.plot([0.5], [0], marker="o", ms=9, color="#e67e22", zorder=6)
 ax.legend(loc="upper left", framealpha=0.94)
 
-title = ax.set_title("Interferenz zweier gleichlaufender Wellen")
+title = ax.set_title("Zwei Sender: Wellen laufen nach rechts")
 info = fig.text(0.10, 0.08, "", fontsize=11)
 
 slider_ax = fig.add_axes([0.15, 0.15, 0.57, 0.035])
@@ -41,7 +45,7 @@ distance_slider = Slider(slider_ax, r"Abstand $d/\lambda$", 0.0, 2.0,
 
 checks_ax = fig.add_axes([0.815, 0.61, 0.175, 0.19])
 checks = CheckButtons(checks_ax,
-                      ["Welle 1", "Welle 2", "Ueberlagerung"],
+                      ["Welle 1", "Welle 2", "Gesamtwelle"],
                       [True, True, True])
 for label, color in zip(checks.labels, ["#1976d2", "#e67e22", "#228b54"]):
     label.set_color(color)
@@ -57,24 +61,32 @@ def update_curves():
     d = distance_slider.val
     phase = 2 * np.pi * (x - FREQUENCY * t)
     wave1 = AMPLITUDE * np.sin(phase)
-    wave2 = AMPLITUDE * np.sin(phase - 2 * np.pi * d)
+    wave2_full = AMPLITUDE * np.sin(2 * np.pi * (x - d - FREQUENCY * t))
+
+    # Sender 2 begins at x=d. Before that point only sender 1 contributes.
+    active2 = x >= d
+    wave2 = np.where(active2, wave2_full, np.nan)
+    total = wave1 + np.where(active2, wave2_full, 0.0)
     line1.set_data(x, wave1)
     line2.set_data(x, wave2)
-    line_sum.set_data(x, wave1 + wave2)
+    line_sum.set_data(x, total)
+
+    sender2.set_xdata([d, d])
+    source2.set_data([d], [0])
 
     max_amp = 2 * AMPLITUDE * abs(np.cos(np.pi * d))
     delta = 360 * d
     info.set_text(
-        rf"$d = {d:.2f}\,\lambda$     "
-        rf"$\Delta\varphi = {delta:.1f}^\circ$     "
-        rf"$A_{{\mathrm{{res}}}} = {max_amp:.2f}\,A$"
+        rf"$d = {d:.2f}\\,\\lambda$     "
+        rf"$\\Delta\\varphi = {delta:.1f}^\\circ$     "
+        rf"$A_{{\\mathrm{{res}}}} (x\\geq d) = {max_amp:.2f}\\,A$"
     )
     fig.canvas.draw_idle()
 
 
 def toggle_line(label):
     lookup = {"Welle 1": line1, "Welle 2": line2,
-              "Ueberlagerung": line_sum}
+              "Gesamtwelle": line_sum}
     line = lookup[label]
     line.set_visible(not line.get_visible())
     fig.canvas.draw_idle()
