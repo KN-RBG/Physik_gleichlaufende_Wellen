@@ -8,15 +8,29 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import CheckButtons, Slider, Button
 
+try:
+    import sounddevice as sd
+except (ImportError, OSError):
+    sd = None
+
 # Lengths are expressed in units of the reference wavelength.
 # With f = 0.60 Hz, the wavelength is 1.00 reference units.
 SPEED = 0.60
 REFERENCE_WAVELENGTH = 1.0
 X_MAX = 10.0
 INTERVAL_MS = 30
+SAMPLE_RATE = 44100
+CARRIER_HZ = 400.0
+LISTENER_X = 5.0
+AUDIO_GAIN = 0.12  # Conservative output level
 x = np.linspace(0.0, X_MAX, 2200)
 t = 0.0
 running = True
+audio_stream = None
+audio_samples = 0
+audio_gain_current = 0.0
+audio_enabled = False
+audio_params = (1.0, 1.0, 0.60, 0.60, 0.5, 0.25, True)
 
 fig, ax = plt.subplots(figsize=(13.8, 7.4))
 fig.subplots_adjust(left=0.08, right=0.69, bottom=0.14, top=0.91)
@@ -39,6 +53,7 @@ source1, = ax.plot([0], [0], "o", ms=9, color="#1976d2", zorder=6)
 source2, = ax.plot([0.5], [0], "o", ms=9, color="#e59b20", zorder=6)
 ax.legend(loc="upper left", framealpha=0.92)
 info = fig.text(0.08, 0.035, "", fontsize=10)
+audio_status = fig.text(0.74, 0.015, "Ton: aus", fontsize=9)
 
 def make_slider(y, label, minimum, maximum, initial, step):
     slider_ax = fig.add_axes([0.785, y, 0.16, 0.030])
@@ -56,6 +71,12 @@ checks = CheckButtons(checks_ax, ["Welle 1", "Welle 2", "Gesamtwelle"],
                       [True, True, True])
 for label, color in zip(checks.labels, ["#1976d2", "#e59b20", "#208c54"]):
     label.set_color(color)
+
+audio_checkbox_ax = fig.add_axes([0.76, 0.125, 0.11, 0.046])
+audio_checkbox = CheckButtons(audio_checkbox_ax, ["Ton an"], [False])
+audio_volume_ax = fig.add_axes([0.895, 0.146, 0.076, 0.02])
+audio_volume = Slider(audio_volume_ax, "Lautst.", 0.0, 1.0,
+                      valinit=0.25, valstep=0.01, valfmt="%.2f")
 
 pause_ax = fig.add_axes([0.74, 0.07, 0.105, 0.055])
 pause_button = Button(pause_ax, "Pause")
@@ -83,6 +104,9 @@ def update_curves():
     source1.set_data([0], [-a1 * np.sin(2 * np.pi * f1 * t)])
     source2.set_data([d], [-a2 * np.sin(2 * np.pi * f2 * t)])
 
+    global audio_params
+    audio_params = (a1, a2, f1, f2, d, audio_volume.val, running)
+
     delta_f = abs(f1 - f2)
     if delta_f < 1e-9:
         beat_text = "gleiche Frequenz"
@@ -96,6 +120,67 @@ def update_curves():
     )
 
 
+
+def audio_callback(outdata, frames, _time_info, _status):
+    """Continuous mono audio: audible carrier plus model frequency offsets."""
+    global audio_samples, audio_gain_current
+    a1, a2, f1, f2, d, volume, is_running = audio_params
+    seconds = (audio_samples + np.arange(frames)) / SAMPLE_RATE
+    audio_samples += frames
+
+    # Audible frequencies are around 400 Hz. Their *difference* is exactly
+    # f2-f1; phase differences use the same wavelengths as the plot.
+    phase1 = 2 * np.pi * ((CARRIER_HZ + f1 - 0.60) * seconds
+                          - f1 * LISTENER_X / SPEED)
+    phase2 = 2 * np.pi * ((CARRIER_HZ + f2 - 0.60) * seconds
+                          - f2 * (LISTENER_X - d) / SPEED)
+    mixture = a1 * np.sin(phase1) + a2 * np.sin(phase2)
+    target_gain = AUDIO_GAIN * volume if is_running else 0.0
+    gains = np.linspace(audio_gain_current, target_gain, frames)
+    audio_gain_current = target_gain
+    outdata[:, 0] = (mixture * gains / 4.0).astype(np.float32)
+
+
+def toggle_audio(_label):
+    global audio_stream, audio_enabled, audio_samples, audio_gain_current
+    audio_enabled = not audio_enabled
+    if audio_enabled:
+        if sd is None:
+            audio_status.set_text("Ton nicht verfuegbar: sounddevice installieren")
+            audio_enabled = False
+        else:
+            try:
+                audio_samples = 0
+                audio_gain_current = 0.0
+                audio_stream = sd.OutputStream(samplerate=SAMPLE_RATE,
+                                               channels=1, dtype="float32",
+                                               callback=audio_callback)
+                audio_stream.start()
+                audio_status.set_text("Ton: an (Hoerpunkt x=5)")
+            except Exception as error:
+                if audio_stream is not None:
+                    audio_stream.close()
+                    audio_stream = None
+                audio_enabled = False
+                audio_status.set_text("Audiofehler: " + str(error)[:65])
+    else:
+        if audio_stream is not None:
+            audio_stream.stop()
+            audio_stream.close()
+            audio_stream = None
+        audio_status.set_text("Ton: aus")
+    if not audio_enabled and audio_checkbox.get_status()[0]:
+        audio_checkbox.set_active(0)
+    fig.canvas.draw_idle()
+
+
+def on_close(_event):
+    global audio_stream
+    if audio_stream is not None:
+        audio_stream.stop()
+        audio_stream.close()
+        audio_stream = None
+
 def toggle_line(label):
     lookup = {"Welle 1": line1, "Welle 2": line2,
               "Gesamtwelle": line_sum}
@@ -108,6 +193,7 @@ def toggle_pause(_event):
     global running
     running = not running
     pause_button.label.set_text("Pause" if running else "Start")
+    update_curves()
     fig.canvas.draw_idle()
 
 
@@ -116,7 +202,7 @@ def reset(_event):
     running = True
     t = 0.0
     pause_button.label.set_text("Pause")
-    for slider in (distance, amp1, amp2, freq1, freq2):
+    for slider in (distance, amp1, amp2, freq1, freq2, audio_volume):
         slider.reset()
     update_curves()
     fig.canvas.draw_idle()
@@ -136,6 +222,9 @@ def animate(_frame):
 
 
 checks.on_clicked(toggle_line)
+audio_checkbox.on_clicked(toggle_audio)
+audio_volume.on_changed(on_slider_change)
+fig.canvas.mpl_connect("close_event", on_close)
 pause_button.on_clicked(toggle_pause)
 reset_button.on_clicked(reset)
 for slider in (distance, amp1, amp2, freq1, freq2):
