@@ -21,7 +21,7 @@ X_MAX = 10.0
 INTERVAL_MS = 30
 SAMPLE_RATE = 44100
 CARRIER_HZ = 400.0
-LISTENER_X = 5.0
+INITIAL_LISTENER_X = 5.0
 AUDIO_GAIN = 0.12  # Conservative output level
 x = np.linspace(0.0, X_MAX, 2200)
 t = 0.0
@@ -30,7 +30,7 @@ audio_stream = None
 audio_samples = 0
 audio_gain_current = 0.0
 audio_enabled = False
-audio_params = (1.0, 1.0, 0.60, 0.60, 0.25, 0.25, True)
+audio_params = (1.0, 1.0, 0.60, 0.60, 0.25, 0.25, True, INITIAL_LISTENER_X)
 
 fig, ax = plt.subplots(figsize=(13.8, 7.4))
 fig.subplots_adjust(left=0.08, right=0.69, bottom=0.14, top=0.91)
@@ -51,6 +51,10 @@ sender1 = ax.axvline(0, color="#1976d2", ls="--", lw=1.1, alpha=0.65)
 sender2 = ax.axvline(0.5, color="#e59b20", ls="--", lw=1.1, alpha=0.65)
 source1, = ax.plot([0], [0], "o", ms=9, color="#1976d2", zorder=6)
 source2, = ax.plot([0.5], [0], "o", ms=9, color="#e59b20", zorder=6)
+listener_line = ax.axvline(INITIAL_LISTENER_X, color="#7a3eb1",
+                           ls=":", lw=2.0, alpha=0.85)
+listener_dot, = ax.plot([INITIAL_LISTENER_X], [0], marker="D",
+                        ms=8, color="#7a3eb1", zorder=7, label="Hoerpunkt")
 ax.legend(loc="upper left", framealpha=0.92)
 info = fig.text(0.08, 0.035, "", fontsize=10)
 audio_status = fig.text(0.74, 0.015, "Ton: aus", fontsize=9)
@@ -60,6 +64,8 @@ def make_slider(y, label, minimum, maximum, initial, step):
     return Slider(slider_ax, label, minimum, maximum, valinit=initial,
                   valstep=step, valfmt="%.2f")
 
+listener = make_slider(0.88, r"$x_H/\lambda_0$", 0.0, X_MAX,
+                       INITIAL_LISTENER_X, 0.05)
 distance = make_slider(0.79, r"$d/\lambda_0$", 0.0, 2.0, 0.25, 0.01)
 amp1 = make_slider(0.68, r"$A_1$", 0.0, 2.0, 1.0, 0.05)
 amp2 = make_slider(0.60, r"$A_2$", 0.0, 2.0, 1.0, 0.05)
@@ -101,11 +107,17 @@ def update_curves():
     line2.set_data(x, y2)
     line_sum.set_data(x, total)
     sender2.set_xdata([d, d])
+    x_h = listener.val
+    y_h = a1 * np.sin(2 * np.pi * (x_h / wavelength1 - f1 * t))
+    if x_h >= d:
+        y_h += a2 * np.sin(2 * np.pi * ((x_h - d) / wavelength2 - f2 * t))
+    listener_line.set_xdata([x_h, x_h])
+    listener_dot.set_data([x_h], [y_h])
     source1.set_data([0], [-a1 * np.sin(2 * np.pi * f1 * t)])
     source2.set_data([d], [-a2 * np.sin(2 * np.pi * f2 * t)])
 
     global audio_params
-    audio_params = (a1, a2, f1, f2, d, audio_volume.val, running)
+    audio_params = (a1, a2, f1, f2, d, audio_volume.val, running, x_h)
 
     delta_f = abs(f1 - f2)
     if delta_f < 1e-9:
@@ -124,17 +136,19 @@ def update_curves():
 def audio_callback(outdata, frames, _time_info, _status):
     """Continuous mono audio: audible carrier plus model frequency offsets."""
     global audio_samples, audio_gain_current
-    a1, a2, f1, f2, d, volume, is_running = audio_params
+    a1, a2, f1, f2, d, volume, is_running, x_h = audio_params
     seconds = (audio_samples + np.arange(frames)) / SAMPLE_RATE
     audio_samples += frames
 
     # Audible frequencies are around 400 Hz. Their *difference* is exactly
     # f2-f1; phase differences use the same wavelengths as the plot.
     phase1 = 2 * np.pi * ((CARRIER_HZ + f1 - 0.60) * seconds
-                          - f1 * LISTENER_X / SPEED)
+                          - f1 * x_h / SPEED)
     phase2 = 2 * np.pi * ((CARRIER_HZ + f2 - 0.60) * seconds
-                          - f2 * (LISTENER_X - d) / SPEED)
-    mixture = a1 * np.sin(phase1) + a2 * np.sin(phase2)
+                          - f2 * (x_h - d) / SPEED)
+    mixture = a1 * np.sin(phase1)
+    if x_h >= d:
+        mixture += a2 * np.sin(phase2)
     target_gain = AUDIO_GAIN * volume if is_running else 0.0
     gains = np.linspace(audio_gain_current, target_gain, frames)
     audio_gain_current = target_gain
@@ -156,7 +170,7 @@ def toggle_audio(_label):
                                                channels=1, dtype="float32",
                                                callback=audio_callback)
                 audio_stream.start()
-                audio_status.set_text("Ton: an (Hoerpunkt x=5)")
+                audio_status.set_text("Ton: an (verschiebbarer Hoerpunkt)")
             except Exception as error:
                 if audio_stream is not None:
                     audio_stream.close()
@@ -202,7 +216,7 @@ def reset(_event):
     running = True
     t = 0.0
     pause_button.label.set_text("Pause")
-    for slider in (distance, amp1, amp2, freq1, freq2, audio_volume):
+    for slider in (listener, distance, amp1, amp2, freq1, freq2, audio_volume):
         slider.reset()
     update_curves()
     fig.canvas.draw_idle()
@@ -218,7 +232,7 @@ def animate(_frame):
     if running:
         t += INTERVAL_MS / 1000.0
     update_curves()
-    return line1, line2, line_sum, source1, source2, sender2, info
+    return line1, line2, line_sum, source1, source2, sender2, listener_line, listener_dot, info
 
 
 checks.on_clicked(toggle_line)
@@ -227,7 +241,7 @@ audio_volume.on_changed(on_slider_change)
 fig.canvas.mpl_connect("close_event", on_close)
 pause_button.on_clicked(toggle_pause)
 reset_button.on_clicked(reset)
-for slider in (distance, amp1, amp2, freq1, freq2):
+for slider in (listener, distance, amp1, amp2, freq1, freq2):
     slider.on_changed(on_slider_change)
 update_curves()
 animation = FuncAnimation(fig, animate, interval=INTERVAL_MS,
