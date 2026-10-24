@@ -31,6 +31,7 @@ clock_anchor = time.perf_counter()
 clock_elapsed = 0.0
 audio_stream = None
 audio_gain_current = 0.0
+audio_sample_count = 0
 audio_enabled = False
 audio_params = (1.0, 1.0, 0.60, 0.60, 0.25, 0.25, True, INITIAL_LISTENER_X)
 
@@ -170,15 +171,19 @@ def audio_callback(outdata, frames, _time_info, _status):
     The instantaneous interference envelope matches the plotted model at
     the selected listener point; the 400-Hz carrier is an audible proxy.
     """
-    global audio_gain_current
+    global audio_gain_current, audio_sample_count
     a1, a2, f1, f2, d, volume, is_running, x_h = audio_params
     start = model_time()
-    seconds = start + np.arange(frames) / SAMPLE_RATE
+    offsets = np.arange(frames) / SAMPLE_RATE
+    seconds = start + offsets
 
     # Same spatial and slow temporal phase as the visible two waves.
     model_phase1 = 2 * np.pi * (f1 * x_h / SPEED - f1 * seconds)
     model_phase2 = 2 * np.pi * (f2 * (x_h - d) / SPEED - f2 * seconds)
-    carrier = 2 * np.pi * CARRIER_HZ * seconds
+    # The audible carrier MUST use consecutive sample indices. Deriving it
+    # from perf_counter at each callback caused clicks and a buzzing tone.
+    carrier = 2 * np.pi * CARRIER_HZ * (audio_sample_count + np.arange(frames)) / SAMPLE_RATE
+    audio_sample_count += frames
     mixture = a1 * np.sin(carrier + model_phase1)
     if x_h >= d:
         mixture += a2 * np.sin(carrier + model_phase2)
@@ -190,7 +195,7 @@ def audio_callback(outdata, frames, _time_info, _status):
 
 
 def toggle_audio(_label):
-    global audio_stream, audio_enabled, audio_gain_current
+    global audio_stream, audio_enabled, audio_gain_current, audio_sample_count
     audio_enabled = bool(audio_checkbox.get_status()[0])
     if audio_enabled:
         if sd is None:
@@ -199,6 +204,7 @@ def toggle_audio(_label):
         else:
             try:
                 audio_gain_current = 0.0
+                audio_sample_count = 0
                 audio_stream = sd.OutputStream(samplerate=SAMPLE_RATE,
                                                channels=1, dtype="float32",
                                                callback=audio_callback)
