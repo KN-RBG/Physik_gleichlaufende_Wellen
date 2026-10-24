@@ -30,7 +30,7 @@ audio_stream = None
 audio_samples = 0
 audio_gain_current = 0.0
 audio_enabled = False
-audio_params = (1.0, 1.0, 0.60, 0.60, 0.5, 0.25, True)
+audio_params = (1.0, 1.0, 0.60, 0.60, 0.25, 0.25, True)
 
 fig, ax = plt.subplots(figsize=(13.8, 7.4))
 fig.subplots_adjust(left=0.08, right=0.69, bottom=0.14, top=0.91)
@@ -60,7 +60,7 @@ def make_slider(y, label, minimum, maximum, initial, step):
     return Slider(slider_ax, label, minimum, maximum, valinit=initial,
                   valstep=step, valfmt="%.2f")
 
-distance = make_slider(0.79, r"$d/\lambda_0$", 0.0, 2.0, 0.50, 0.01)
+distance = make_slider(0.79, r"$d/\lambda_0$", 0.0, 2.0, 0.25, 0.01)
 amp1 = make_slider(0.68, r"$A_1$", 0.0, 2.0, 1.0, 0.05)
 amp2 = make_slider(0.60, r"$A_2$", 0.0, 2.0, 1.0, 0.05)
 freq1 = make_slider(0.47, r"$f_1$ / Hz", 0.20, 1.50, 0.60, 0.01)
