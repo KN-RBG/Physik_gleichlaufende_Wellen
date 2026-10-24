@@ -143,7 +143,7 @@ def audio_callback(outdata, frames, _time_info, _status):
 
 def toggle_audio(_label):
     global audio_stream, audio_enabled, audio_samples, audio_gain_current
-    audio_enabled = not audio_enabled
+    audio_enabled = bool(audio_checkbox.get_status()[0])
     if audio_enabled:
         if sd is None:
             audio_status.set_text("Ton nicht verfuegbar: sounddevice installieren")
