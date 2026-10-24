@@ -32,8 +32,8 @@ audio_gain_current = 0.0
 audio_enabled = False
 audio_params = (1.0, 1.0, 0.60, 0.60, 0.25, 0.25, True, INITIAL_LISTENER_X)
 
-fig, ax = plt.subplots(figsize=(13.8, 7.4))
-fig.subplots_adjust(left=0.08, right=0.69, bottom=0.14, top=0.91)
+fig, ax = plt.subplots(figsize=(12.8, 7.2))
+fig.subplots_adjust(left=0.09, right=0.68, bottom=0.16, top=0.90)
 fig.canvas.manager.set_window_title("Gleichlaufende Wellen - Interferenz und Schwebung")
 
 ax.set(xlim=(0, X_MAX), ylim=(-4.2, 4.2),
@@ -56,39 +56,59 @@ listener_line = ax.axvline(INITIAL_LISTENER_X, color="#7a3eb1",
 listener_dot, = ax.plot([INITIAL_LISTENER_X], [0], marker="D",
                         ms=8, color="#7a3eb1", zorder=7, label="Hoerpunkt")
 ax.legend(loc="upper left", framealpha=0.92)
-info = fig.text(0.08, 0.035, "", fontsize=10)
-audio_status = fig.text(0.74, 0.015, "Ton: aus", fontsize=9)
+info = fig.text(0.09, 0.065, "", fontsize=10)
+audio_status = fig.text(0.735, 0.012, "Ton: aus", fontsize=9)
+
+# All controls are placed in a dedicated panel on the right.
+# Slider labels are separate from the slider axes to avoid overlap.
+PANEL_X = 0.735
+SLIDER_X = 0.835
+SLIDER_W = 0.115
+
+def section(label, y):
+    fig.text(PANEL_X, y, label, fontsize=10, weight="bold")
 
 def make_slider(y, label, minimum, maximum, initial, step):
-    slider_ax = fig.add_axes([0.785, y, 0.16, 0.030])
-    return Slider(slider_ax, label, minimum, maximum, valinit=initial,
-                  valstep=step, valfmt="%.2f")
+    fig.text(PANEL_X, y + 0.004, label, fontsize=9, va="center")
+    slider_ax = fig.add_axes([SLIDER_X, y, SLIDER_W, 0.023])
+    slider = Slider(slider_ax, "", minimum, maximum, valinit=initial,
+                    valstep=step, valfmt="%.2f")
+    slider.valtext.set_fontsize(9)
+    return slider
 
-listener = make_slider(0.88, r"$x_H/\lambda_0$", 0.0, X_MAX,
+section("Positionen", 0.915)
+listener = make_slider(0.855, r"$x_H/\lambda_0$", 0.0, X_MAX,
                        INITIAL_LISTENER_X, 0.05)
-distance = make_slider(0.79, r"$d/\lambda_0$", 0.0, 2.0, 0.25, 0.01)
-amp1 = make_slider(0.68, r"$A_1$", 0.0, 2.0, 1.0, 0.05)
-amp2 = make_slider(0.60, r"$A_2$", 0.0, 2.0, 1.0, 0.05)
-freq1 = make_slider(0.47, r"$f_1$ / Hz", 0.20, 1.50, 0.60, 0.01)
-freq2 = make_slider(0.39, r"$f_2$ / Hz", 0.20, 1.50, 0.60, 0.01)
+distance = make_slider(0.795, r"$d/\lambda_0$", 0.0, 2.0, 0.25, 0.01)
 
-checks_ax = fig.add_axes([0.755, 0.19, 0.22, 0.16])
+section("Amplituden", 0.744)
+amp1 = make_slider(0.691, r"$A_1$", 0.0, 2.0, 1.0, 0.05)
+amp2 = make_slider(0.639, r"$A_2$", 0.0, 2.0, 1.0, 0.05)
+
+section("Frequenzen", 0.588)
+freq1 = make_slider(0.535, r"$f_1$ / Hz", 0.20, 1.50, 0.60, 0.01)
+freq2 = make_slider(0.483, r"$f_2$ / Hz", 0.20, 1.50, 0.60, 0.01)
+
+section("Anzeige", 0.425)
+checks_ax = fig.add_axes([0.74, 0.273, 0.21, 0.130])
 checks = CheckButtons(checks_ax, ["Welle 1", "Welle 2", "Gesamtwelle"],
                       [True, True, True])
 for label, color in zip(checks.labels, ["#1976d2", "#e59b20", "#208c54"]):
     label.set_color(color)
 
-audio_checkbox_ax = fig.add_axes([0.76, 0.125, 0.11, 0.046])
+section("Ton", 0.249)
+audio_checkbox_ax = fig.add_axes([0.74, 0.190, 0.18, 0.045])
 audio_checkbox = CheckButtons(audio_checkbox_ax, ["Ton an"], [False])
-audio_volume_ax = fig.add_axes([0.895, 0.146, 0.076, 0.02])
-audio_volume = Slider(audio_volume_ax, "Lautst.", 0.0, 1.0,
+audio_volume_ax = fig.add_axes([SLIDER_X, 0.141, SLIDER_W, 0.023])
+fig.text(PANEL_X, 0.145, "Lautst.", fontsize=9, va="center")
+audio_volume = Slider(audio_volume_ax, "", 0.0, 1.0,
                       valinit=0.25, valstep=0.01, valfmt="%.2f")
+audio_volume.valtext.set_fontsize(9)
 
-pause_ax = fig.add_axes([0.74, 0.07, 0.105, 0.055])
+pause_ax = fig.add_axes([0.74, 0.058, 0.104, 0.051])
 pause_button = Button(pause_ax, "Pause")
-reset_ax = fig.add_axes([0.865, 0.07, 0.115, 0.055])
+reset_ax = fig.add_axes([0.861, 0.058, 0.108, 0.051])
 reset_button = Button(reset_ax, "Reset")
-
 
 def update_curves():
     d = distance.val
