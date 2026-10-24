@@ -60,3 +60,15 @@ Die Tonhoehe ist also bewusst in den hoerbaren Bereich verschoben; die
 gezeichneten Wellen selbst bleiben niederfrequente Modellwellen.
 Pause schaltet den Ton stumm; Start setzt ihn fort. Das Audio ist nicht
 samplegenau mit der Bildschirmanimation synchronisiert.
+
+## Synchronisation von Bild und Ton
+
+Grafik und Audio verwenden dieselbe monotone Modellzeit (mit Pause und Reset).
+Die phasenbestimmenden Terme fuer die beiden Wellen sind in beiden Ausgaben
+identisch. Fuer den Ton wird eine schnelle 400-Hz-Traegerschwingung addiert;
+der frequenzabhaengige Interferenzverlauf und die Schwebungshuellen stimmen
+mit dem Modell am beweglichen Hoerpunkt ueberein.
+
+Die schnelle 400-Hz-Traegerschwingung selbst ist nicht als sichtbare Schwingung
+im Diagramm dargestellt. Treiber- und Audiopufferlatenz koennen zu kleinen
+zeitlichen Verzoegerungen fuehren; es ist keine samplegenaue Bild/Ton-Synchronisation.
