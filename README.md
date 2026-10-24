@@ -11,6 +11,7 @@ python gleichlaufende_wellen.py
 
 ## Bedienung
 
+- Hoerpunkt x_H: 0 bis 10 Referenzwellenlaengen, mit violetter Linie und Punkt.
 - Abstand d: 0 bis 2 Referenzwellenlaengen (lambda_0).
 - A1, A2: Amplituden der Sender unabhaengig von 0 bis 2.
 - f1, f2: Frequenzen der Sender unabhaengig von 0.20 bis 1.50 Hz.
@@ -52,7 +53,8 @@ Die Audio-Ausgabe benoetigt ein funktionierendes Audio-Ausgabegeraet.
 Die Audiofrequenzen liegen bei 400 Hz + (f_i - 0.60 Hz). Dadurch stimmt die
 Frequenzdifferenz, also die Schwebungsfrequenz, exakt mit der Simulation
 ueberein, waehrend ein gut hoerbarer Grundton erhalten bleibt. Der Ton
-repraesentiert die Superposition am festgelegten Hoerpunkt x=5 lambda_0.
+repraesentiert das Signal am einstellbaren Hoerpunkt x_H. Links von Sender 2
+ist nur der erste Sender hoerbar; ab dem zweiten Sender die Ueberlagerung.
 Die Phasenverschiebung der beiden Sender entspricht dort dem Wellenbild.
 Die Tonhoehe ist also bewusst in den hoerbaren Bereich verschoben; die
 gezeichneten Wellen selbst bleiben niederfrequente Modellwellen.
