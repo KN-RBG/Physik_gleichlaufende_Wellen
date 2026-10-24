@@ -3,6 +3,7 @@
 Start: python gleichlaufende_wellen.py
 Dependencies: numpy, matplotlib
 """
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -26,8 +27,9 @@ AUDIO_GAIN = 0.12  # Conservative output level
 x = np.linspace(0.0, X_MAX, 2200)
 t = 0.0
 running = True
+clock_anchor = time.perf_counter()
+clock_elapsed = 0.0
 audio_stream = None
-audio_samples = 0
 audio_gain_current = 0.0
 audio_enabled = False
 audio_params = (1.0, 1.0, 0.60, 0.60, 0.25, 0.25, True, INITIAL_LISTENER_X)
@@ -110,7 +112,16 @@ pause_button = Button(pause_ax, "Pause")
 reset_ax = fig.add_axes([0.861, 0.058, 0.108, 0.051])
 reset_button = Button(reset_ax, "Reset")
 
+def model_time(now=None):
+    """Monotonic shared time for plot and audio; freezes while paused."""
+    if now is None:
+        now = time.perf_counter()
+    return clock_elapsed + (now - clock_anchor if running else 0.0)
+
+
 def update_curves():
+    global t
+    t = model_time()
     d = distance.val
     a1, a2 = amp1.val, amp2.val
     f1, f2 = freq1.val, freq2.val
@@ -154,21 +165,24 @@ def update_curves():
 
 
 def audio_callback(outdata, frames, _time_info, _status):
-    """Continuous mono audio: audible carrier plus model frequency offsets."""
-    global audio_samples, audio_gain_current
-    a1, a2, f1, f2, d, volume, is_running, x_h = audio_params
-    seconds = (audio_samples + np.arange(frames)) / SAMPLE_RATE
-    audio_samples += frames
+    """Audio carrier with exactly the same low-frequency phase as the plot.
 
-    # Audible frequencies are around 400 Hz. Their *difference* is exactly
-    # f2-f1; phase differences use the same wavelengths as the plot.
-    phase1 = 2 * np.pi * ((CARRIER_HZ + f1 - 0.60) * seconds
-                          - f1 * x_h / SPEED)
-    phase2 = 2 * np.pi * ((CARRIER_HZ + f2 - 0.60) * seconds
-                          - f2 * (x_h - d) / SPEED)
-    mixture = a1 * np.sin(phase1)
+    The instantaneous interference envelope matches the plotted model at
+    the selected listener point; the 400-Hz carrier is an audible proxy.
+    """
+    global audio_gain_current
+    a1, a2, f1, f2, d, volume, is_running, x_h = audio_params
+    start = model_time()
+    seconds = start + np.arange(frames) / SAMPLE_RATE
+
+    # Same spatial and slow temporal phase as the visible two waves.
+    model_phase1 = 2 * np.pi * (f1 * x_h / SPEED - f1 * seconds)
+    model_phase2 = 2 * np.pi * (f2 * (x_h - d) / SPEED - f2 * seconds)
+    carrier = 2 * np.pi * CARRIER_HZ * seconds
+    mixture = a1 * np.sin(carrier + model_phase1)
     if x_h >= d:
-        mixture += a2 * np.sin(phase2)
+        mixture += a2 * np.sin(carrier + model_phase2)
+
     target_gain = AUDIO_GAIN * volume if is_running else 0.0
     gains = np.linspace(audio_gain_current, target_gain, frames)
     audio_gain_current = target_gain
@@ -176,7 +190,7 @@ def audio_callback(outdata, frames, _time_info, _status):
 
 
 def toggle_audio(_label):
-    global audio_stream, audio_enabled, audio_samples, audio_gain_current
+    global audio_stream, audio_enabled, audio_gain_current
     audio_enabled = bool(audio_checkbox.get_status()[0])
     if audio_enabled:
         if sd is None:
@@ -184,7 +198,6 @@ def toggle_audio(_label):
             audio_enabled = False
         else:
             try:
-                audio_samples = 0
                 audio_gain_current = 0.0
                 audio_stream = sd.OutputStream(samplerate=SAMPLE_RATE,
                                                channels=1, dtype="float32",
@@ -224,17 +237,22 @@ def toggle_line(label):
 
 
 def toggle_pause(_event):
-    global running
+    global running, clock_elapsed, clock_anchor
+    now = time.perf_counter()
+    clock_elapsed = model_time(now)
     running = not running
+    clock_anchor = now
     pause_button.label.set_text("Pause" if running else "Start")
     update_curves()
     fig.canvas.draw_idle()
 
 
 def reset(_event):
-    global t, running
+    global t, running, clock_anchor, clock_elapsed
     running = True
     t = 0.0
+    clock_elapsed = 0.0
+    clock_anchor = time.perf_counter()
     pause_button.label.set_text("Pause")
     for slider in (listener, distance, amp1, amp2, freq1, freq2, audio_volume):
         slider.reset()
@@ -248,9 +266,6 @@ def on_slider_change(_value):
 
 
 def animate(_frame):
-    global t
-    if running:
-        t += INTERVAL_MS / 1000.0
     update_curves()
     return line1, line2, line_sum, source1, source2, sender2, listener_line, listener_dot, info
 
