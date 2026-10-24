@@ -39,3 +39,22 @@ f2=0.70 Hz, A1=A2=1.0; die Schwebungsperiode betraegt dann 10 s.
 
 Die Simulation stellt den eingeschwungenen Zustand dar, nicht die Wellenfront
 beim erstmaligen Einschalten der Quellen. Alle Langen sind auf lambda_0 bezogen.
+
+## Audio (optional)
+
+Mit der Checkbox "Ton an" laesst sich eine akustische Gesamtwelle einschalten.
+Die Lautstaerke kann ueber den separaten Regler eingestellt werden. Zuerst
+mit niedriger Lautstaerke testen.
+
+Installation: `pip install sounddevice` (auch in requirements.txt enthalten).
+Die Audio-Ausgabe benoetigt ein funktionierendes Audio-Ausgabegeraet.
+
+Die Audiofrequenzen liegen bei 400 Hz + (f_i - 0.60 Hz). Dadurch stimmt die
+Frequenzdifferenz, also die Schwebungsfrequenz, exakt mit der Simulation
+ueberein, waehrend ein gut hoerbarer Grundton erhalten bleibt. Der Ton
+repraesentiert die Superposition am festgelegten Hoerpunkt x=5 lambda_0.
+Die Phasenverschiebung der beiden Sender entspricht dort dem Wellenbild.
+Die Tonhoehe ist also bewusst in den hoerbaren Bereich verschoben; die
+gezeichneten Wellen selbst bleiben niederfrequente Modellwellen.
+Pause schaltet den Ton stumm; Start setzt ihn fort. Das Audio ist nicht
+samplegenau mit der Bildschirmanimation synchronisiert.
