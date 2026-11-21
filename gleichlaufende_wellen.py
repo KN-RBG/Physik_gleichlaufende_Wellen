@@ -84,6 +84,13 @@ listener = make_slider(0.855, r"$x_H/\lambda_0$", 0.0, X_MAX,
                        INITIAL_LISTENER_X, 0.05)
 distance = make_slider(0.795, r"$d/\lambda_0$", 0.0, 2.0, 0.25, 0.01)
 
+# Direct exact spacing presets, independent of mouse/slider precision.
+# The slider is still available for any intermediate distance.
+preset_half_ax = fig.add_axes([0.10, 0.012, 0.145, 0.038])
+preset_half = Button(preset_half_ax, r"$d=0.5\,\lambda_0$")
+preset_one_half_ax = fig.add_axes([0.265, 0.012, 0.16, 0.038])
+preset_one_half = Button(preset_one_half_ax, r"$d=1.5\,\lambda_0$")
+
 section("Amplituden", 0.744)
 amp1 = make_slider(0.691, r"$A_1$", 0.0, 2.0, 1.0, 0.05)
 amp2 = make_slider(0.639, r"$A_2$", 0.0, 2.0, 1.0, 0.05)
@@ -276,6 +283,15 @@ def animate(_frame):
     return line1, line2, line_sum, source1, source2, sender2, listener_line, listener_dot, info
 
 
+def set_distance_exactly(value):
+    """Set source separation to an exact fraction of the reference wavelength."""
+    distance.set_val(float(value))
+    update_curves()
+    fig.canvas.draw_idle()
+
+
+preset_half.on_clicked(lambda _event: set_distance_exactly(0.5))
+preset_one_half.on_clicked(lambda _event: set_distance_exactly(1.5))
 checks.on_clicked(toggle_line)
 audio_checkbox.on_clicked(toggle_audio)
 audio_volume.on_changed(on_slider_change)
