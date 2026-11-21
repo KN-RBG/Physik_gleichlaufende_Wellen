@@ -82,7 +82,7 @@ def make_slider(y, label, minimum, maximum, initial, step):
 section("Positionen", 0.915)
 listener = make_slider(0.855, r"$x_H/\lambda_0$", 0.0, X_MAX,
                        INITIAL_LISTENER_X, 0.05)
-distance = make_slider(0.795, r"$d/\lambda_0$", 0.0, 2.0, 0.5, 0.5)
+distance = make_slider(0.795, r"$d/\lambda_0$", 0.0, 2.0, 0.25, 0.01)
 
 section("Amplituden", 0.744)
 amp1 = make_slider(0.691, r"$A_1$", 0.0, 2.0, 1.0, 0.05)
@@ -275,6 +275,29 @@ def animate(_frame):
     update_curves()
     return line1, line2, line_sum, source1, source2, sender2, listener_line, listener_dot, info
 
+
+# Feine Zwischenwerte bleiben verfuegbar. Beim Loslassen des
+# Abstandreglers rasten benachbarte Halb-Wellenlaengen-Werte exakt ein.
+distance_dragging = False
+
+
+def distance_press(event):
+    global distance_dragging
+    distance_dragging = (event.inaxes is distance.ax)
+
+
+def distance_release(_event):
+    global distance_dragging
+    if not distance_dragging:
+        return
+    distance_dragging = False
+    nearest = round(distance.val * 2.0) / 2.0
+    if abs(distance.val - nearest) <= 0.03:
+        distance.set_val(nearest)
+
+
+fig.canvas.mpl_connect("button_press_event", distance_press)
+fig.canvas.mpl_connect("button_release_event", distance_release)
 
 checks.on_clicked(toggle_line)
 audio_checkbox.on_clicked(toggle_audio)
