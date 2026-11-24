@@ -127,7 +127,7 @@ def update_curves():
     z1 = a1 * np.exp(2j * np.pi * (x_h / wavelength1 - f1 * t))
     z2 = a2 * np.exp(2j * np.pi * ((x_h - d) / wavelength2 - f2 * t)) if x_h >= d else 0j
     for arrow, z, visible in zip(phasors, (z1, z2, z1+z2), checks.get_status()):
-        arrow.set_UVC([z.real], [z.imag])
+        arrow.set_UVC([-z.real], [z.imag])
         arrow.set_visible(visible)
     listener_line.set_xdata([x_h, x_h])
     listener_dot.set_data([x_h], [y_h])
